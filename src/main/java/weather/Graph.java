@@ -32,62 +32,65 @@ public class Graph {
     }
 
     public static void main(String[] args) {
+        float lon = (float) -79.57708179364083, lat = (float) 43.77717780278558;
         Graph g = new Graph();
 //        g.getData().download();
 //        g.getData().load();
-//        g.pewpew();
+//        g.makeGraphs();
     }
 
     public Data getData() {
         return data;
     }
 
-    private void pewpew() {
+    private void makeGraphs() {
         for (ReadingOf readingOf : ReadingOf.values()) {
             for (Province province : Province.values()) {
                 for (Season season : Season.values()) {
                     for (StationsOption stationsOption : StationsOption.values()) {
                         String title = stationsOption.name() + " " + readingOf.name() + " in " + province.toString().toUpperCase(Locale.ROOT) + " during " + (season == Season.ALL ? "ALL_SEASONS" : season.name());
                         File file = new File(("./output/" + province + "/" + season + "/" + stationsOption.name() + "_" + readingOf.name() + ".png").toLowerCase(Locale.ROOT));
-
-                        try {
-                            FileUtils.openOutputStream(file);
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-
-                        JFreeChart timeSeriesChart = ChartFactory.createTimeSeriesChart(
-                                title,
-                                "Year",
-                                "Value",
-                                createDataset(1900, 2021, readingOf, province, season, stationsOption),
-                                true, true, true
-                        );
-
-                        XYLineAndShapeRenderer r = new XYLineAndShapeRenderer();
-                        r.setSeriesPaint(0, Color.BLUE);
-                        r.setSeriesPaint(1, Color.GREEN);
-                        r.setSeriesPaint(2, Color.RED);
-                        r.setSeriesStroke(0, new BasicStroke(2.0f));
-                        r.setSeriesStroke(1, new BasicStroke(2.0f));
-                        r.setSeriesStroke(2, new BasicStroke(1.0f));
-                        r.setBaseShapesVisible(false);
-                        timeSeriesChart.getXYPlot().setRenderer(r);
-
-                        try {
-                            ChartUtilities.saveChartAsPNG(file, timeSeriesChart, 2000, 1000);
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
+                        Data.Query query = new Data.Query.Builder().readingOf(readingOf).stationsOption(stationsOption).province(province).season(season).build();
+                        createChart(file, title, 1900, 2021, query);
                     }
                 }
             }
         }
-
     }
 
-    private XYDataset createDataset(int startYear, int endYear, ReadingOf readingOf, Province province, Season season, StationsOption stationsOption) {
+    private void createChart(File file, String title, int startYear, int endYear, Data.Query query){
+        try {
+            FileUtils.openOutputStream(file);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
+        JFreeChart timeSeriesChart = ChartFactory.createTimeSeriesChart(
+                title,
+                "Year",
+                "Value",
+                createDataset(startYear, endYear, query),
+                true, true, true
+        );
+
+        XYLineAndShapeRenderer r = new XYLineAndShapeRenderer();
+        r.setSeriesPaint(0, Color.BLUE);
+        r.setSeriesPaint(1, Color.GREEN);
+        r.setSeriesPaint(2, Color.RED);
+        r.setSeriesStroke(0, new BasicStroke(2.0f));
+        r.setSeriesStroke(1, new BasicStroke(3.0f));
+        r.setSeriesStroke(2, new BasicStroke(1.0f));
+        r.setBaseShapesVisible(false);
+        timeSeriesChart.getXYPlot().setRenderer(r);
+
+        try {
+            ChartUtilities.saveChartAsPNG(file, timeSeriesChart, 2000, 1000);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private XYDataset createDataset(int startYear, int endYear, Data.Query query) {
         TimeSeriesCollection dataset = new TimeSeriesCollection();
         TimeSeries mainValueSeries = new TimeSeries("Raw Value");
         TimeSeries rollingAverageSeries = new TimeSeries("7-Year Rolling Avg");
@@ -98,12 +101,11 @@ public class Graph {
         for (int i = startYear; i <= endYear; i++) {
             Year year = new Year(i);
 
-            float mainValue = data.query(new Data.Query.Builder()
-                    .readingOf(readingOf).year(i).province(province).season(season).stationsOption(stationsOption)
-                    .build());
+            query.setYear(i);
+            float mainValue = data.query(query);
 
             if (mainValue != Float.MIN_VALUE) {
-                allPoints.add((float) i, mainValue);
+                allPoints.add(i, mainValue);
                 rollingAverage.update(mainValue);
                 mainValueSeries.add(new TimeSeriesDataItem(year, mainValue));
                 if (rollingAverage.getValue() != Float.MIN_VALUE) {
@@ -116,8 +118,8 @@ public class Graph {
 
         if (list.size() > 0) {
             double[] coef = fitter.fit(list);
-            float b = (float) coef[0],
-                    slope = (float) coef[1];
+            double b = coef[0],
+                    slope = coef[1];
             for (WeightedObservedPoint p : list) {
                 linearTrendSeries.add(new TimeSeriesDataItem(new Year((int) p.getX()), p.getX() * slope + b));
             }

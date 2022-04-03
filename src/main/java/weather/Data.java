@@ -83,7 +83,7 @@ public class Data {
             try {
                 Field field = r.getClass().getDeclaredField(query.readingOf.toString());
                 field.setAccessible(true);
-                Float value = (Float) field.get(r);
+                float value = (float) field.get(r);
                 if (value != Float.MIN_VALUE) {
                     count++;
                     total += value;
@@ -155,7 +155,7 @@ public class Data {
     static class Query {
         final Province province;
         final Season season;
-        final int year, month;
+        int year, month;
         final ReadingOf readingOf;
         final float withinRangeKM, longitude, latitude;
         final StationsOption stationsOption;
@@ -170,6 +170,10 @@ public class Data {
             longitude = builder.longitude;
             latitude = builder.latitude;
             stationsOption = builder.stationsOption;
+        }
+
+        public void setYear(int year){
+            this.year = year;
         }
 
         public static class Builder {
