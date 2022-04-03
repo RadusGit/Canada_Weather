@@ -32,11 +32,21 @@ public class Graph {
     }
 
     public static void main(String[] args) {
-        float lon = (float) -79.57708179364083, lat = (float) 43.77717780278558;
+
         Graph g = new Graph();
+        g.getData().load();
 //        g.getData().download();
-//        g.getData().load();
 //        g.makeGraphs();
+
+//        float lon = (float) -79.57708179364083, lat = (float) 43.77717780278558;
+//        Data.Query query = new Data.Query.Builder()
+//                .withinRangeKM(100, lat, lon)
+//                .season(Season.WINTER)
+//                .readingOf(ReadingOf.MIN_TEMP)
+//                .stationsOption(StationsOption.AVERAGE)
+//                .build();
+//
+//        g.createChart(new File("test.png"), "Title", 1900, 2021, query);
     }
 
     public Data getData() {
@@ -44,6 +54,7 @@ public class Graph {
     }
 
     private void makeGraphs() {
+        int startYear = 1900, endYear = 2021;
         for (ReadingOf readingOf : ReadingOf.values()) {
             for (Province province : Province.values()) {
                 for (Season season : Season.values()) {
@@ -51,7 +62,7 @@ public class Graph {
                         String title = stationsOption.name() + " " + readingOf.name() + " in " + province.toString().toUpperCase(Locale.ROOT) + " during " + (season == Season.ALL ? "ALL_SEASONS" : season.name());
                         File file = new File(("./output/" + province + "/" + season + "/" + stationsOption.name() + "_" + readingOf.name() + ".png").toLowerCase(Locale.ROOT));
                         Data.Query query = new Data.Query.Builder().readingOf(readingOf).stationsOption(stationsOption).province(province).season(season).build();
-                        createChart(file, title, 1900, 2021, query);
+                        createChart(file, title, startYear, endYear, query);
                     }
                 }
             }
@@ -92,7 +103,7 @@ public class Graph {
 
     private XYDataset createDataset(int startYear, int endYear, Data.Query query) {
         TimeSeriesCollection dataset = new TimeSeriesCollection();
-        TimeSeries mainValueSeries = new TimeSeries("Raw Value");
+        TimeSeries mainValueSeries = new TimeSeries("Value");
         TimeSeries rollingAverageSeries = new TimeSeries("7-Year Rolling Avg");
         TimeSeries linearTrendSeries = new TimeSeries("Linear Trend");
 

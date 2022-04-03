@@ -144,9 +144,7 @@ public class Data {
             for (DownloadProvinceRunnable pd : provinceData) {
                 stations.addAll(pd.getStations());
             }
-            Gson gson = new Gson();
-            String json = gson.toJson(stations);
-            Files.writeString(Paths.get("stations.json"), json);
+            Files.writeString(Paths.get("stations.json"), new Gson().toJson(stations));
         } catch (Exception e) {
             System.out.println(e.getLocalizedMessage());
         }

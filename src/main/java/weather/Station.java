@@ -53,7 +53,7 @@ public class Station {
         return null;
     }
 
-    private static float getAttributeValuefloat(Node stationNode, String tagName, String attributeName) {
+    private static float getAttributeValueFloat(Node stationNode, String tagName, String attributeName) {
         String value = getAttributeValue(stationNode, tagName, attributeName);
         if (value != null) {
             try {
@@ -104,11 +104,11 @@ public class Station {
         public Reading(Node stationNode, int year, int month) {
             this.year = year;
             this.month = month;
-            minTemp = getAttributeValuefloat(stationNode, "min_temperature", "value");
-            meanTemp = getAttributeValuefloat(stationNode, "mean_temperature", "value");
-            maxTemp = getAttributeValuefloat(stationNode, "max_temperature", "value");
-            snow = getAttributeValuefloat(stationNode, "snow", "total");
-            precipitation = getAttributeValuefloat(stationNode, "precipitation", "total");
+            minTemp = getAttributeValueFloat(stationNode, "min_temperature", "value");
+            meanTemp = getAttributeValueFloat(stationNode, "mean_temperature", "value");
+            maxTemp = getAttributeValueFloat(stationNode, "max_temperature", "value");
+            snow = getAttributeValueFloat(stationNode, "snow", "total");
+            precipitation = getAttributeValueFloat(stationNode, "precipitation", "total");
         }
 
         public int getMonth() {
