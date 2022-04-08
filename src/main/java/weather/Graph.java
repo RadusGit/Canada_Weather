@@ -34,19 +34,9 @@ public class Graph {
     public static void main(String[] args) {
 
         Graph g = new Graph();
-        g.getData().load();
+//        g.getData().load();
 //        g.getData().download();
 //        g.makeGraphs();
-
-//        float lon = (float) -79.57708179364083, lat = (float) 43.77717780278558;
-//        Data.Query query = new Data.Query.Builder()
-//                .withinRangeKM(100, lat, lon)
-//                .season(Season.WINTER)
-//                .readingOf(ReadingOf.MIN_TEMP)
-//                .stationsOption(StationsOption.AVERAGE)
-//                .build();
-//
-//        g.createChart(new File("test.png"), "Title", 1900, 2021, query);
     }
 
     public Data getData() {
