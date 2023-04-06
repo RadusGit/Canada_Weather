@@ -15,20 +15,27 @@ public class Station {
     private final ArrayList<Reading> readings;
     private final float latitude, longitude;
 
-    public Station(Node stationNode, int year, int month, Province province) {
-        this.province = province;
+    public Station(Node stationNode, int year, int month) {
         name = getElementValue(stationNode, "name");
         identifier = getElementValue(stationNode, "identifier");
+        province = Province.valueOf(getAttributeValue(stationNode, "province_or_territory", "code"));
 
         String la = getElementValue(stationNode, "latitude");
         String lo = getElementValue(stationNode, "longitude");
-        latitude = la == null ? Float.MIN_VALUE : Float.parseFloat(la);
-        longitude = lo == null ? Float.MIN_VALUE : Float.parseFloat(lo);
+        latitude = stringToFloat(la);
+        longitude = stringToFloat(lo);
 
         readings = new ArrayList<>();
         readings.add(new Reading(stationNode, year, month));
     }
 
+    private Float stringToFloat(String s){
+        try {
+            return Float.parseFloat(s);
+        }catch (Exception e){
+            return Float.MIN_VALUE;
+        }
+    }
     private static String getElementValue(Node stationNode, String tagName) {
         NodeList childNodes = stationNode.getChildNodes();
         for (int i = 0; i < childNodes.getLength(); i++) {

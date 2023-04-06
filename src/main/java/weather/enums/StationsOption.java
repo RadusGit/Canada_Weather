@@ -1,5 +1,5 @@
 package weather.enums;
 
 public enum StationsOption {
-    RECORD_MAX, AVERAGE, RECORD_MIN
+    EXTREME_MAX, AVERAGE, EXTREME_MIN
 }

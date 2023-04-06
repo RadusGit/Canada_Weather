@@ -12,6 +12,8 @@ import weather.enums.Season;
 import weather.enums.StationsOption;
 
 import javax.xml.parsers.DocumentBuilderFactory;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.StringReader;
 import java.lang.reflect.Field;
@@ -19,6 +21,7 @@ import java.lang.reflect.Type;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Objects;
 
 public class Data {
@@ -29,7 +32,7 @@ public class Data {
         stations = new ArrayList<>();
     }
 
-    public static boolean isWithin(float distanceKM, float lat1, float lat2, float lon1, float lon2) {
+    private static boolean isWithin(float distanceKM, float lat1, float lat2, float lon1, float lon2) {
         final int R = 6371; // Radius of the earth
 
         double latDistance = Math.toRadians(lat2 - lat1);
@@ -102,14 +105,11 @@ public class Data {
         }
 
         if (count > 0) {
-            switch (query.stationsOption) {
-                case AVERAGE:
-                    return total / count;
-                case RECORD_MAX:
-                    return max;
-                case RECORD_MIN:
-                    return min;
-            }
+            return switch (query.stationsOption) {
+                case AVERAGE -> total / count;
+                case EXTREME_MAX -> max;
+                case EXTREME_MIN -> min;
+            };
         }
         return Float.MIN_VALUE;
     }
@@ -127,23 +127,33 @@ public class Data {
     }
 
     public void download() {
-        stations = new ArrayList<>();
         try {
             ArrayList<Thread> threads = new ArrayList<>();
-            ArrayList<DownloadProvinceRunnable> provinceData = new ArrayList<>();
-            for (Province p : Province.values()) {
-                DownloadProvinceRunnable pd = new DownloadProvinceRunnable(p);
-                provinceData.add(pd);
-                Thread thread = new Thread(pd);
-                threads.add(thread);
-                thread.start();
+            ArrayList<DownloadMonthRunnable> months = new ArrayList<>();
+            for (int i=1; i<13; i++){
+                DownloadMonthRunnable m = new DownloadMonthRunnable(i);
+                months.add(m);
+                Thread t = new Thread(m);
+                threads.add(t);
+                t.start();
             }
-            for (Thread t : threads) {
+
+            for (Thread t : threads){
                 t.join();
             }
-            for (DownloadProvinceRunnable pd : provinceData) {
-                stations.addAll(pd.getStations());
+
+            HashMap<String, Station> stationsId = new HashMap<>();
+            for (DownloadMonthRunnable dm : months){
+                for (Station s : dm.getStations()){
+                    if (stationsId.containsKey(s.getIdentifier())){
+                        stationsId.get(s.getIdentifier()).getReadings().addAll(s.getReadings());
+                    }else {
+                        stationsId.put(s.getIdentifier(), s);
+                    }
+                }
             }
+
+            stations = new ArrayList<>(stationsId.values());
             Files.writeString(Paths.get("stations.json"), new Gson().toJson(stations));
         } catch (Exception e) {
             System.out.println(e.getLocalizedMessage());
@@ -237,33 +247,42 @@ public class Data {
         }
     }
 
-    private static class DownloadProvinceRunnable implements Runnable {
+    private static class DownloadMonthRunnable implements Runnable {
 
         private static final int START_YEAR = 1850, END_YEAR = 2023;
-        private final Province province;
+        private final int month;
         private final ArrayList<Station> stations;
 
-        public DownloadProvinceRunnable(Province province) {
-            this.province = province;
+        public DownloadMonthRunnable(int month) {
+            this.month = month;
             stations = new ArrayList<>();
         }
 
-        public static String Get(Province province, int year, int month) {
+        public String Get(int year) {
             HttpUrl.Builder urlBuilder = Objects.requireNonNull(HttpUrl.parse("https://climate.weather.gc.ca/prods_servs/cdn_climate_summary_report_e.html")).newBuilder();
-            urlBuilder.addQueryParameter("prov", province.toString());
             urlBuilder.addQueryParameter("intYear", String.valueOf(year));
             urlBuilder.addQueryParameter("intMonth", String.valueOf(month));
             urlBuilder.addQueryParameter("dataFormat", "xml");
-            urlBuilder.addQueryParameter("btnSubmit", "Download+weather.Data");
             String url = urlBuilder.build().toString();
-            System.out.println(url);
+            System.out.println("GET " + url);
             Request request = new Request.Builder().url(url).build();
             OkHttpClient client = new OkHttpClient();
 
             try {
                 Response response = client.newCall(request).execute();
                 ResponseBody rb = response.body();
-                return rb == null ? Get(province, year, month) : rb.string();
+
+                if (rb != null){
+                    String s = rb.string();
+                    File file = new File("raw_stations.txt");
+                    FileWriter fr = new FileWriter(file, true);
+                    fr.write(s);
+                    fr.close();
+
+                    return s;
+                }
+                return Get(year);
+
             } catch (IOException e) {
                 e.printStackTrace();
                 try {
@@ -271,7 +290,7 @@ public class Data {
                 } catch (InterruptedException ex) {
                     ex.printStackTrace();
                 }
-                return Get(province, year, month);
+                return Get(year);
             }
         }
 
@@ -280,20 +299,18 @@ public class Data {
             try {
                 DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
                 for (int i = START_YEAR; i < END_YEAR; i++) {
-                    for (int j = 1; j < 13; j++) {
-                        String xmlString = Get(province, i, j);
-                        Document doc = factory.newDocumentBuilder().parse(new InputSource(new StringReader(xmlString)));
-                        NodeList stationsXml = doc.getElementsByTagName("station");
-                        if (stationsXml.getLength() > 0) {
-                            for (int k = 0; k < stationsXml.getLength(); k++) {
+                    String xmlString = Get(i);
+                    Document doc = factory.newDocumentBuilder().parse(new InputSource(new StringReader(xmlString)));
+                    NodeList stationsXml = doc.getElementsByTagName("station");
+                    if (stationsXml.getLength() > 0) {
+                        for (int k = 0; k < stationsXml.getLength(); k++) {
 
-                                Station newStation = new Station(stationsXml.item(k), i, j, province);
-                                Station existingStation = getStation(newStation.getIdentifier());
-                                if (existingStation != null) {
-                                    existingStation.addReading(stationsXml.item(k), i, j);
-                                } else {
-                                    stations.add(newStation);
-                                }
+                            Station newStation = new Station(stationsXml.item(k), i, month);
+                            Station existingStation = getStation(newStation.getIdentifier());
+                            if (existingStation != null) {
+                                existingStation.addReading(stationsXml.item(k), i, month);
+                            } else {
+                                stations.add(newStation);
                             }
                         }
                     }

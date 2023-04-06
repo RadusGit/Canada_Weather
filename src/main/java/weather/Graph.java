@@ -19,24 +19,44 @@ import weather.enums.Season;
 import weather.enums.StationsOption;
 
 import java.awt.*;
+import java.beans.PropertyVetoException;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Locale;
+import java.util.Queue;
 
 public class Graph {
     final Data data;
+    private final static int ROLLING_NUMBER = 7;
 
     Graph() {
         data = new Data();
     }
 
     public static void main(String[] args) {
-
         Graph g = new Graph();
-//        g.getData().load();
-//        g.getData().download();
-//        g.makeGraphs();
+
+        if (!new File("stations.json").exists()){
+            g.getData().download();
+        }
+
+        g.getData().load();
+        g.makeGraphs();
+
+//        Data.Query query = new Data.Query.Builder()
+//                .readingOf(ReadingOf.MAX_TEMP)
+//                .stationsOption(StationsOption.AVERAGE)
+//                .province(Province.CANADA)
+//                .season(Season.ALL)
+//                .build();
+//
+//        g.createChart(new File("test1.png"), "1900", 1900, 2017, query);
     }
 
     public Data getData() {
@@ -44,18 +64,21 @@ public class Graph {
     }
 
     private void makeGraphs() {
-        int startYear = 1900, endYear = 2021;
-        for (ReadingOf readingOf : ReadingOf.values()) {
-            for (Province province : Province.values()) {
-                for (Season season : Season.values()) {
-                    for (StationsOption stationsOption : StationsOption.values()) {
-                        String title = stationsOption.name() + " " + readingOf.name() + " in " + province.toString().toUpperCase(Locale.ROOT) + " during " + (season == Season.ALL ? "ALL_SEASONS" : season.name());
-                        File file = new File(("./output/" + province + "/" + season + "/" + stationsOption.name() + "_" + readingOf.name() + ".png").toLowerCase(Locale.ROOT));
-                        Data.Query query = new Data.Query.Builder().readingOf(readingOf).stationsOption(stationsOption).province(province).season(season).build();
-                        createChart(file, title, startYear, endYear, query);
+        int startYear = 1900, endYear = 2022;
+        for (Province province : Province.values()) {
+            (new Thread(() -> {
+                for (ReadingOf readingOf : ReadingOf.values()) {
+                    for (Season season : Season.values()) {
+                        for (StationsOption stationsOption : StationsOption.values()) {
+                            String title = stationsOption.name() + " " + readingOf.name() + " in " + province.toString().toUpperCase(Locale.ROOT) + " during " + (season == Season.ALL ? "ALL_SEASONS" : season.name());
+                            System.out.println("Making graph: " + title);
+                            File file = new File(("./output/" + province + "/" + season + "/" + stationsOption.name() + "_" + readingOf.name() + ".png").toLowerCase(Locale.ROOT));
+                            Data.Query query = new Data.Query.Builder().readingOf(readingOf).stationsOption(stationsOption).province(province).season(season).build();
+                            createChart(file, title, startYear, endYear, query);
+                        }
                     }
                 }
-            }
+            })).start();
         }
     }
 
@@ -94,11 +117,11 @@ public class Graph {
     private XYDataset createDataset(int startYear, int endYear, Data.Query query) {
         TimeSeriesCollection dataset = new TimeSeriesCollection();
         TimeSeries mainValueSeries = new TimeSeries("Value");
-        TimeSeries rollingAverageSeries = new TimeSeries("7-Year Rolling Avg");
+        TimeSeries rollingAverageSeries = new TimeSeries(ROLLING_NUMBER + "-Year Rolling Avg");
         TimeSeries linearTrendSeries = new TimeSeries("Linear Trend");
 
         WeightedObservedPoints allPoints = new WeightedObservedPoints();
-        RollingAverage rollingAverage = new RollingAverage(7);
+        RollingAverage rollingAverage = new RollingAverage();
         for (int i = startYear; i <= endYear; i++) {
             Year year = new Year(i);
 
@@ -134,30 +157,28 @@ public class Graph {
     }
 
     public static class RollingAverage {
-        final int rollingNumber;
         final ArrayList<Float> numbers;
 
-        RollingAverage(int rollingNumber) {
+        RollingAverage() {
             numbers = new ArrayList<>();
-            this.rollingNumber = rollingNumber;
         }
 
         void update(float newValue) {
             numbers.add(newValue);
-            if (rollingNumber < numbers.size()) {
+            if (ROLLING_NUMBER < numbers.size()) {
                 numbers.remove(0);
             }
         }
 
         float getValue() {
-            if (numbers.size() < rollingNumber) {
+            if (numbers.size() < ROLLING_NUMBER) {
                 return Float.MIN_VALUE;
             }
             float total = 0;
             for (float f : numbers) {
                 total += f;
             }
-            return total / rollingNumber;
+            return total / ROLLING_NUMBER;
         }
     }
 }

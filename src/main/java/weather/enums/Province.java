@@ -14,7 +14,8 @@ public enum Province {
     YT("Yukon"),
     NT("Northwest Territories"),
     NU("Nunavut"),
-    CANADA("Canada");
+    CANADA("Canada"),
+    XX("Other");
 
     private final String text;
 
