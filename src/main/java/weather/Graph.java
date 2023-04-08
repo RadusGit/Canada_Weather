@@ -47,23 +47,23 @@ public class Graph {
         }
 
         g.getData().load();
-        g.makeGraphs();
+        g.createAllGraphs();
 
 //        Data.Query query = new Data.Query.Builder()
 //                .readingOf(ReadingOf.MAX_TEMP)
 //                .stationsOption(StationsOption.AVERAGE)
 //                .province(Province.CANADA)
-//                .season(Season.ALL)
+//                .season(Season.SUMMER)
 //                .build();
-//
-//        g.createChart(new File("test1.png"), "1900", 1900, 2017, query);
+
+//        g.createGraph(new File("test1.png"), "1900", 1900, 2022, query);
     }
 
     public Data getData() {
         return data;
     }
 
-    private void makeGraphs() {
+    private void createAllGraphs() {
         int startYear = 1900, endYear = 2022;
         for (Province province : Province.values()) {
             (new Thread(() -> {
@@ -74,7 +74,7 @@ public class Graph {
                             System.out.println("Making graph: " + title);
                             File file = new File(("./output/" + province + "/" + season + "/" + stationsOption.name() + "_" + readingOf.name() + ".png").toLowerCase(Locale.ROOT));
                             Data.Query query = new Data.Query.Builder().readingOf(readingOf).stationsOption(stationsOption).province(province).season(season).build();
-                            createChart(file, title, startYear, endYear, query);
+                            createGraph(file, title, startYear, endYear, query);
                         }
                     }
                 }
@@ -82,7 +82,7 @@ public class Graph {
         }
     }
 
-    private void createChart(File file, String title, int startYear, int endYear, Data.Query query){
+    private void createGraph(File file, String title, int startYear, int endYear, Data.Query query){
         try {
             FileUtils.openOutputStream(file);
         } catch (IOException e) {
